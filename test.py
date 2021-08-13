@@ -5,6 +5,7 @@ import numpy as np
 from simulator import *
 import os
 import pickle
+from request import make_request_events
 
 
 def get_zipfs_distribution(num, z_val):
@@ -71,9 +72,25 @@ if __name__ == "__main__":
         args.init_request = True
 
     if args.init_request:
-        request_lst = make_request_event(
-            env['num server'], env['arrival rate'], 60, env['end time'], z, data_lst, ctrl.svr_lst
+        request_lst = make_request_events(
+            env['num server'], env['arrival rate'], 60, env['end time'], data_lst, ctrl.svr_lst
         )
+
+
+    if args.init_cache:
+        y = np.full(env['num data'], 1)
+        ctrl.init_caching(y=y, select_func=select_func_using_y) #select_func => 'greedy', 'RL', ...
+
+
+    data = data_lst[0]
+    if args.save_flag:
+        with open(os.path.join(args.save_path, integrated_file), 'wb') as f:
+            save_data = {'data list': data_lst, 'controller': ctrl, 'request list': request_lst}
+            pickle.dump(save_data, f)
+
+
+
+
 
 
 

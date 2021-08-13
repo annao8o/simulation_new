@@ -1,6 +1,7 @@
 from datetime import timedelta
 import numpy as np
 from configure import request_file
+import pickle
 
 
 def make_request_events(num_svr, arrival_rate, interval, end_t, data_lst, svr_lst):
@@ -19,6 +20,7 @@ def make_request_events(num_svr, arrival_rate, interval, end_t, data_lst, svr_ls
         t += t_interval
     request_events.sort(key=lambda x: x[1])
     return request_events
+
 
 def load_request_events(folder_path):
     with open(os.path.join(folder_path, request_file), 'rb') as f:
