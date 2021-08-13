@@ -4,13 +4,14 @@ from itertools import combinations
 import random
 from datetime import timedelta
 from collections import deque
+from configure import *
 
 
 
 class Data:
-    def __init__(self, i, data_size):
-        self.id = i
-        self.size = data_size
+    def __init__(self, id, size):
+        self.id = id
+        self.size = size
 
 class User:
     def __init__(self, id):
@@ -48,11 +49,11 @@ class User:
 
 
 class MECServer:
-    def __init__(self, id, capacity, controller):
+    def __init__(self, id, controller):
         self.id = id
         self.ctrl = controller
         self.location = None
-        self.capacity = capacity
+        self.capacity = cache_capacity
         self.storage_usage = 0
         self.queue = deque()
         self.popularity = None
@@ -104,8 +105,19 @@ class MECServer:
             return timedelta(seconds=self.ctrl.rtt_map[self.id, destination.id])
 
     def calc_service_time(self ):
+        return
 
+    def get_sample(self, size=None):
+        zeta = np.r_[0.0, np.cumsum(self.popularity)]
+        cdf = [x / zeta[-1] for x in zeta]
 
+        if size is None:
+            f = random.random()
+        else:
+            f = np.random.random(size)
+        v = np.searchsorted(cdf, f)
+        samples = [t - 1 for t in v]
+        return samples
 
     def append_request(self, **kwargs):
         kwargs['data'].set_queueing(kwargs['simulator'].T)
@@ -117,6 +129,9 @@ class MECServer:
         else:
             return 0
 
+    def clear(self):
+        self.processing_event = None
+        self.queue.clear()
 
 
 class Controller:   # controller
@@ -132,13 +147,13 @@ class Controller:   # controller
         self.usable_storage = None
 
 
-    def set_env(self, num_svr, num_data):
+    def set_env(self, num_svr, num_data, request_info):
         self.num_svr = num_svr
         self.num_data = num_data
         self.caching_map = np.zeros((num_svr, num_data), dtype=np.bool_)
         self.d_size_map = np.zeros(num_data, dtype=np.int_)
-        # self.requests = requests
-
+        self.requests = request_info
+        self.usable_storage = np.zeros(self.num_svr)
 
     def create_env(self, data_lst):
         g = nx.Graph()
@@ -162,6 +177,9 @@ class Controller:   # controller
                 g.add_edge(u, v, rtt=random.uniform(0,1)*0.001+0.001)
         self.graph = g
 
+    def set_popularity(self, popularity_lst):
+        for i in range(len(popularity_lst)):
+            self.svr_lst[i].set_popularity(popularity_lst[i, :])
 
     def set_svr_cache(self, svr_idx, item):
         if type(item) == np.ndarray:
@@ -182,9 +200,9 @@ class Controller:   # controller
             cn.add_svr(i)
             self.svr_lst[i].set_CN(cn)
 
-            for n in self.graph.neighbors(i):
-                if n in checkList:
-                    # 클러스터 기준 다시 정해서 코딩해야함
+            # for n in self.graph.neighbors(i):
+            #     if n in checkList:
+            #         # 클러스터 기준 다시 정해서 코딩해야함
 
     def rtt_mapping(self):
         self.rtt_map = np.zeros((self.num_svr, self.num_svr), dtype=np.float_)
@@ -194,7 +212,23 @@ class Controller:   # controller
                 self.rtt_map[i, j] = length
                 self.rtt_map[j, i] = length
 
+    def init_caching(self, **kwargs):
+        self.caching_map = np.zeros_like(self.caching_map) if any(self.caching_map > 0) else self.caching_map
 
+        for svr in self.svr_lst:
+            svr.storage_usage = 0
+            self.usable_storage[svr.id] = svr.get_usable_storage()
+            svr.lambda_i = 0.0
+            svr.clear()
+
+        for cn in self.CN_lst:
+            cn.caching_policy(**kwargs)
+
+    def clearCN(self):
+        self.CN_lst = list()
+        for svr in self.svr_lst:
+            svr.set_CN(None)
+        self.make_CN()
 
 
 
@@ -245,8 +279,8 @@ class CooperativeNet:   # Cluster (=Sub-region)
         print("==============================================")
 
 
-
-
+    def caching_policy(self, **kwargs):
+        return
 
 class Cloud:
     def __init__(self, rtt, bandwidth):

@@ -1,5 +1,6 @@
 import numpy as np
 import random
+from elements import User
 
 def calc_global_popularity(Q, v):
     user_num = len(Q)
@@ -11,7 +12,7 @@ def calc_global_popularity(Q, v):
         for u in range(user_num):
             p_f += v[u] * Q[u][f]
         p[f] = p_f
-    print(p.argsort())
+    # print(p.argsort())
     return p
 
 
@@ -33,7 +34,7 @@ def calc_local_popularity(Q, A, v):
             p_fi = numerator / denominator
             p_i[f] = p_fi
         local_p[i] = p_i
-        print(local_p[i].argsort())
+        # print(local_p[i].argsort())
 
     return local_p
 
@@ -97,36 +98,45 @@ class GenPreference:
     def __init__(self):
         self.type_lst = None  # store preference type
         self.num_type = None
-        self.contents_num = None
+        self.num_data = None
+        self.z_val = None
+        self.user_lst = list()
 
-    def make_pref_type(self, num_type, contents_num, z_val):
+
+    def set_env(self, num_type, num_data, z_val):
         self.num_type = num_type
-        self.contents_num = contents_num
-        self.type_lst = np.zeros((num_type, contents_num), dtype=np.float_)
+        self.num_data = num_data
+        self.z_val = z_val
+        self.type_lst = np.zeros((num_type, num_data), dtype=np.float_)
 
-        temp = np.power(np.arange(1, contents_num + 1), -z_val)
+
+    def make_pref_type(self):
+        temp = np.power(np.arange(1, self.num_data + 1), -self.z_val)
         denominator = np.sum(temp)
         pdf = temp / denominator
 
-        h_lst = [i for i in range(contents_num)]
-        bound = contents_num // num_type
-        for type_idx in range(num_type):
-            unused_lst = [i for i in range(contents_num)]
+        h_lst = [i for i in range(self.num_data)]
+        bound = self.num_data // self.num_type
+        for type_idx in range(self.num_type):
+            unused_lst = [i for i in range(self.num_data)]
             for i in range(bound):
                 c_i = np.random.choice(h_lst)
                 h_lst.remove(c_i)
                 unused_lst.remove(c_i)
                 self.type_lst[type_idx, c_i] = pdf[i]
             np.random.shuffle(unused_lst)
-            for i in range(bound, contents_num):
+            for i in range(bound, self.num_data):
                 self.type_lst[type_idx, unused_lst[i - bound]] = pdf[i]
 
-        return self.type_lst
 
-    # def set_pref_type(self, type_lst):
-    #     self.type_lst = type_lst
-    #     self.num_type = len(type_lst)
-    #     self.contents_num = len(type_lst[0, :])
+    def make_user(self, user_num, activity_level, location_prob):
+        for i in range(user_num):
+            u = User(i)
+            user_type, pdf, cdf = self.make_user_pref(dev_val=0.0001)
+            u.set_char(user_type, pdf, cdf, activity_level[i], location_prob[user_type])
+            self.user_lst.append(u)
+
+        return self.user_lst
 
 
     def make_user_pref(self, dev_val=0.001):  # type_weight: 타입과의 유사도? p = w1*t1 + w2*t2 + ...  , out_type: 0=cdf, 1=pdf
@@ -138,6 +148,7 @@ class GenPreference:
         # # result = self.type_lst * type_weight
         # # result = result.sum(axis=0)    # pdf
         # user_type = np.random.choice(len(type_weight), p=type_weight.flatten())
+        self.make_pref_type()
         user_type = np.random.choice(len(self.type_lst))
         result = self.add_noise(self.type_lst[user_type, :], dev_val)  # add noise for user
 

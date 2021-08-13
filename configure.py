@@ -1,15 +1,15 @@
 import argparse
 from enum import Enum, auto
 
-num_type = 5  # the number of clusters
-contents_num = 20
-z_val = 0.7
-user_num = 100
-cell_num = 5
-cache_capacity = 1
-
-bandwidth_back = 1 #Mbps
-bandwidth_downlink = 5 #MHz
+# num_type = 5  # the number of clusters
+# contents_num = 20
+# z_val = 0.7
+# user_num = 100
+# cell_num = 5
+# cache_capacity = 1
+#
+# bandwidth_back = 1 #Mbps
+# bandwidth_downlink = 5 #MHz
 
 # ## Zipf's skewness parameter
 # skew_global_popularity = 0.6
@@ -38,10 +38,10 @@ class ArgsParser:
 
         self.parser.add_argument('--save_flag', action='store_true')
         self.parser.add_argument('--load_flag', action='store_true')
-        self.parser.add_argument('ig', '--init_graph', action='store_true')
-        self.parser.add_argument('ir', '--init_request', action='store_true')
-        self.parser.add_argument('ic', '--init_cache', action='store_true')
-        self.parser.add_argument('id', '--init_data', action='store_true')
+        self.parser.add_argument('-ig', '--init_graph', action='store_true')
+        self.parser.add_argument('-ir', '--init_request', action='store_true')
+        self.parser.add_argument('-ic', '--init_cache', action='store_true')
+        self.parser.add_argument('-id', '--init_data', action='store_true')
 
         self.parser.add_argument('-sp', '--save_path', type=str, default='./save/default')
         self.parser.add_argument('-lp', '--load_path', type=str, default='./save/default')
@@ -66,4 +66,7 @@ class EventType(Enum):
     path_check = auto()
     null = auto()
 
+user_rtt = (0.001, 0.002)
+cache_capacity = 6 * 1024 * 1024 * 8
 request_file = 'requests.bin'
+integrated_file = 'integrated.bin'

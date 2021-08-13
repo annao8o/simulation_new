@@ -2,6 +2,7 @@ from datetime import timedelta
 import numpy as np
 from configure import request_file
 import pickle
+import os
 
 
 def make_request_events(num_svr, arrival_rate, interval, end_t, data_lst, svr_lst):

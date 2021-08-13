@@ -30,6 +30,7 @@ if __name__ == "__main__":
         'num server': args.num_server,
         'num user': args.num_user,
         'num data': args.num_data,
+        'num type': args.num_type,
         'end time': timedelta(seconds=args.end_time),
         'arrival rate': args.arrival,
         'cloud rtt': args.cloud_rtt,
@@ -46,7 +47,7 @@ if __name__ == "__main__":
     if args.load_flag:
         with open(os.path.join(args.load_path, integrated_file), 'rb') as f:
             load_data = pickle.load(f)
-        z = load_data['zipf']
+        # z = load_data['zipf']
         data_lst = load_data['data list']
         cn = load_data['cooperative network']
         request_lst = load_data['request list']
@@ -56,20 +57,32 @@ if __name__ == "__main__":
         args.init_data = True
 
     if args.init_data:
+        data_lst = [Data(i, size=random.randint(args.file_size[0], args.file_size[1])) for i in range(env['num data'])]  # data 생성
+        # global_popularity = get_zipfs_distribution(env['num data'], env['zskew_global_popularity)
+        activity_level = get_zipfs_distribution(env['num user'], env['zipf activity'])
+        location_prob = genLocality(env['num type'], env['num server'], env['zipf location'])
+
         generator = GenPreference()
-        type_lst = generator.make_pref_type(args.num_type, args.num_data, args.zipf_preference)
+        generator.set_env(env['num type'], env['num data'], env['zipf preference'])
+        user_lst = generator.make_user(env['num user'], activity_level, location_prob)
+        A = np.zeros((env['num user'], env['num server']))
+        Q = np.zeros((env['num user'], env['num data']))
+        for u in user_lst:
+            # u.print_user_info()
+            A[u.id] = u.location
+            Q[u.id] = u.pref_vec[0]
+        local = calc_local_popularity(Q, A, activity_level)
 
-
-
+        args.init_request = True
+        args.init_cache = True
 
     if args.init_graph:
         ctrl = Controller()
         ctrl.set_env(env['num server'], env['num data'], {'request rate': env['arrival rate']})
         ctrl.create_env(data_lst)
         ctrl.rtt_mapping()
-        ctrl.make_cluster()
-        args.init_cache = True
-        args.init_request = True
+        ctrl.set_popularity(local)
+        # ctrl.make_cluster()
 
     if args.init_request:
         request_lst = make_request_events(
@@ -79,15 +92,39 @@ if __name__ == "__main__":
 
     if args.init_cache:
         y = np.full(env['num data'], 1)
-        ctrl.init_caching(y=y, select_func=select_func_using_y) #select_func => 'greedy', 'RL', ...
+        ctrl.init_caching(y=y, select_func=select_func) #select_func => 'greedy', 'RL', ...
 
 
     data = data_lst[0]
     if args.save_flag:
         with open(os.path.join(args.save_path, integrated_file), 'wb') as f:
-            save_data = {'data list': data_lst, 'controller': ctrl, 'request list': request_lst}
+            save_data = {'data list': data_lst, 'user list': user_lst, 'controller': ctrl, 'request list': request_lst}
             pickle.dump(save_data, f)
 
+    s.init(ctrl)
+    chk_length = 1000
+    buff_time = timedelta(seconds=60)
+    front_idx = 0
+    rear_idx = 1
+
+    state = 0
+    front_t = timedelta(seconds=0)
+
+    while state == 0:
+        if front_t < s.T + buff_time and front_idx < len(request_lst):
+            while rear_idx < len(request_lst) and request_lst[rear_idx - 1][1] < s.T + buff_time:   #request_lst[][1]: time
+                rear_idx += chk_length
+                rear_idx = rear_idx if rear_idx < len(request_lst) else len(request_lst)
+            s.insert_request_lst(request_lst[front_idx:rear_idx])
+            front_idx = rear_idx
+            front_idx = front_idx if front_idx < len(request_lst) else len(request_lst)
+            front_t = request_lst[front_idx][1] if front_idx < len(request_lst) else request_lst[-1][1]
+        state = s.update()
+
+    # if args.output_path is not None:
+    #     with open(args.output_path, 'wb') as f:
+    #         pickle.dump(s.result, f)
+    #
 
 
 
@@ -95,6 +132,8 @@ if __name__ == "__main__":
 
 
 
+'''
+    type_lst = generator.make_pref_type(args.num_type, args.num_data, args.zipf_preference)
 
 
 
@@ -102,19 +141,19 @@ if __name__ == "__main__":
     A = np.zeros((user_num, cell_num))
     Q = np.zeros((user_num, contents_num))
 
-    ctrl = Controller()
-    ctrl.create_env(data_lst, cell_num, cache_capacity)
+    # ctrl = Controller()
+    # ctrl.create_env(data_lst, cell_num, cache_capacity)
+    #
+    # global_popularity = get_zipfs_distribution(contents_num, skew_global_popularity)
+    # activity_level = get_zipfs_distribution(user_num, skew_activity_level)
+    # location_prob = genLocality(num_type, cell_num, skew_location_prob)
 
-    global_popularity = get_zipfs_distribution(contents_num, skew_global_popularity)
-    activity_level = get_zipfs_distribution(user_num, skew_activity_level)
-    location_prob = genLocality(num_type, cell_num, skew_location_prob)
-
-    # Create users
-    for i in range(user_num):
-        u = User(i)
-        user_type, pdf, cdf = generator.make_user_pref(dev_val=0.0001)
-        u.set_char(user_type, pdf, cdf, activity_level[i], location_prob[user_type])
-        user_lst.append(u)
+    # # Create users
+    # for i in range(user_num):
+    #     u = User(i)
+    #     user_type, pdf, cdf = generator.make_user_pref(dev_val=0.0001)
+    #     u.set_char(user_type, pdf, cdf, activity_level[i], location_prob[user_type])
+    #     user_lst.append(u)
 
     # Set user's character
     for u in user_lst:
@@ -130,6 +169,6 @@ if __name__ == "__main__":
 
     print("Global\n",calc_global_popularity(Q, activity_level))
     print("Local\n", local)
-
+'''
 
 
