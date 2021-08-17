@@ -47,6 +47,7 @@ if __name__ == "__main__":
     if args.load_flag:
         with open(os.path.join(args.load_path, integrated_file), 'rb') as f:
             load_data = pickle.load(f)
+            print("success to load")
         # z = load_data['zipf']
         data_lst = load_data['data list']
         cn = load_data['cooperative network']
@@ -55,6 +56,7 @@ if __name__ == "__main__":
     else:   # initial generation
         args.init_graph = True
         args.init_data = True
+        args.save_flag = True
 
     if args.init_data:
         data_lst = [Data(i, size=random.randint(args.file_size[0], args.file_size[1])) for i in range(env['num data'])]  # data 생성
@@ -82,13 +84,12 @@ if __name__ == "__main__":
         ctrl.create_env(data_lst)
         ctrl.rtt_mapping()
         ctrl.set_popularity(local)
-        # ctrl.make_cluster()
+        ctrl.make_CN(sim_theta)
 
     if args.init_request:
         request_lst = make_request_events(
             env['num server'], env['arrival rate'], 60, env['end time'], data_lst, ctrl.svr_lst
         )
-
 
     if args.init_cache:
         y = np.full(env['num data'], 1)
@@ -100,6 +101,7 @@ if __name__ == "__main__":
         with open(os.path.join(args.save_path, integrated_file), 'wb') as f:
             save_data = {'data list': data_lst, 'user list': user_lst, 'controller': ctrl, 'request list': request_lst}
             pickle.dump(save_data, f)
+            print("success to save")
 
     s.init(ctrl)
     chk_length = 1000
@@ -125,11 +127,6 @@ if __name__ == "__main__":
     #     with open(args.output_path, 'wb') as f:
     #         pickle.dump(s.result, f)
     #
-
-
-
-
-
 
 
 '''

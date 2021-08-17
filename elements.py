@@ -1,10 +1,34 @@
 import numpy as np
+from numpy.linalg import norm
 import networkx as nx
 from itertools import combinations
 import random
 from datetime import timedelta
 from collections import deque
 from configure import *
+import matplotlib.pyplot as plt
+
+def cos_sim(A, B):
+    return np.dot(A, B) / (norm(A)*norm(B))
+
+
+def default_select_func(**kwargs):
+    cn = kwargs['cooperative network']
+    data = kwargs['data']
+
+    candidates = cn.svr_lst
+    candidates = np.logical_and(candidates, np.logical_not(cn.ctrl.caching_map[:, data.id]))
+    candidates = cn.ctrl.usable_storage * candidates
+    candidates = candidates > data.size
+    if np.any(candidates > 0):
+        min_arr = np.min(cn.arrival_rate_map[candidates])   #arrival rate가 작은 server들
+        min_candidates = np.where(np.logical_and(cn.arrival_rate_map == min_arr, candidates))
+        return np.random.choice(min_candidates[0])
+    else:
+        return -1
+
+def select_func_using_y():
+    return
 
 
 
@@ -12,6 +36,29 @@ class Data:
     def __init__(self, id, size):
         self.id = id
         self.size = size
+
+    def __eq__(self, other):
+        if isinstance(self, type(other)):
+            return self.idx == other.idx
+        else:
+            return False
+
+class RequestedData(Data):
+    def __init__(self, data, request_time, near_svr=None):
+        super().__init__(data.id, data.size)
+        self.request_time = request_time
+        self.near_svr = near_svr
+        self.queueing_time = None
+
+    def set_queueing(self, T):
+        self.queueing_time = T
+
+    def __eq__(self, other):
+        if type(self) == type(other):
+            return super().__eq__(other) and self.request_time == other.request_time
+        else:
+            return False
+
 
 class User:
     def __init__(self, id):
@@ -58,7 +105,7 @@ class MECServer:
         self.queue = deque()
         self.popularity = None
         self.service_time = 0
-        self.CN = None
+        self.cn = None
 
     def set_popularity(self, p):
         self.popularity = p
@@ -79,11 +126,11 @@ class MECServer:
         else:
             return 0
 
-    def set_CN(self, sub):
-        self.sub_region = sub
+    def set_CN(self, cn):
+        self.cn = cn
 
     def check_CN(self, data):    #check whether the data is stored in the sub-region
-        return self.sub_region.isContain(data)
+        return self.cn.isContain(data)
 
     def pop_request(self):
         if self.queue:
@@ -104,7 +151,7 @@ class MECServer:
         else:
             return timedelta(seconds=self.ctrl.rtt_map[self.id, destination.id])
 
-    def calc_service_time(self ):
+    def calc_service_time(self):
         return
 
     def get_sample(self, size=None):
@@ -115,9 +162,8 @@ class MECServer:
             f = random.random()
         else:
             f = np.random.random(size)
-        v = np.searchsorted(cdf, f)
-        samples = [t - 1 for t in v]
-        return samples
+
+        return np.searchsorted(cdf, f) - 1
 
     def append_request(self, **kwargs):
         kwargs['data'].set_queueing(kwargs['simulator'].T)
@@ -176,6 +222,9 @@ class Controller:   # controller
             if random.random() < p:
                 g.add_edge(u, v, rtt=random.uniform(0,1)*0.001+0.001)
         self.graph = g
+        nx.draw(self.graph)
+        plt.show()
+
 
     def set_popularity(self, popularity_lst):
         for i in range(len(popularity_lst)):
@@ -191,7 +240,7 @@ class Controller:   # controller
     def check_cache_in_CN(self, CN_matrix, data_idx):
         return self.caching_map[:, data_idx]@CN_matrix
 
-    def make_CN(self):
+    def make_CN(self, theta):
         checkList = [i for i in range(self.num_svr)]
         while checkList:
             cn = CooperativeNet(self.num_svr, self)
@@ -200,9 +249,20 @@ class Controller:   # controller
             cn.add_svr(i)
             self.svr_lst[i].set_CN(cn)
 
-            # for n in self.graph.neighbors(i):
-            #     if n in checkList:
-            #         # 클러스터 기준 다시 정해서 코딩해야함
+            # print(i, list(self.graph.neighbors(i)))
+            # print(self.graph.edges())
+            for n in list(self.graph.neighbors(i)):
+                if n in checkList:
+                    if self.svr_lst[n].cn is None:
+                        sim = cos_sim(self.svr_lst[i].popularity, self.svr_lst[n].popularity) # calculate the cosine similarity between popularity of servers
+                        if sim >= theta:
+                            checkList.remove(n)
+                            cn.add_svr(n)
+                            self.svr_lst[n].set_CN(cn)
+                        else:
+                            checkList.remove(n)
+            self.CN_lst.append(cn)
+
 
     def rtt_mapping(self):
         self.rtt_map = np.zeros((self.num_svr, self.num_svr), dtype=np.float_)
@@ -291,7 +351,7 @@ class Cloud:
 
         self.bandwidth = bandwidth
 
-    def calc_rtt(self):
+    def calc_rtt(self, _):
         return self.rtt
 
     def append_request(self, **kwargs):

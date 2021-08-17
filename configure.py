@@ -43,8 +43,8 @@ class ArgsParser:
         self.parser.add_argument('-ic', '--init_cache', action='store_true')
         self.parser.add_argument('-id', '--init_data', action='store_true')
 
-        self.parser.add_argument('-sp', '--save_path', type=str, default='./save/default')
-        self.parser.add_argument('-lp', '--load_path', type=str, default='./save/default')
+        self.parser.add_argument('-sp', '--save_path', type=str, default='./save/')
+        self.parser.add_argument('-lp', '--load_path', type=str, default='./save/')
         self.parser.add_argument('-op', '--output_path', type=str, default=None,
                                  help='output file path (None: not save output)')
 
@@ -66,7 +66,47 @@ class EventType(Enum):
     path_check = auto()
     null = auto()
 
+
+# (destination, type)
+# type -> 0: start, 1: end, 2: waiting, -1: other
+directfind = True
+event_path_hit = [
+    (NetworkElement.user, EventType.start),
+    (NetworkElement.user, EventType.path_check),
+    (NetworkElement.MECsvr, EventType.request),
+    (NetworkElement.MECsvr, EventType.process),
+    (NetworkElement.user, EventType.end)
+]
+
+event_path_miss = [
+    (NetworkElement.user, EventType.start),
+    (NetworkElement.user, EventType.path_check),
+    (NetworkElement.cloud, EventType.request),
+    (NetworkElement.cloud, EventType.process),   # transfer data
+    (NetworkElement.user, EventType.end)
+]
+
+sim_theta = 0.7
+split_point = 1   # split of path
 user_rtt = (0.001, 0.002)
 cache_capacity = 6 * 1024 * 1024 * 8
 request_file = 'requests.bin'
 integrated_file = 'integrated.bin'
+
+
+
+gamma = 0.99
+eta = 0.5
+max_steps = 200
+num_episodes = 1000
+num_files = 30
+num_servers = 5
+cache_size = 5
+zipf_param = 1.0
+env_params = dict(r_iu=1, r_ij=10, r_ci=100, #r_iu: transmission rate between user and MEC
+                  file_size=[random.randrange(1, 30) for _ in range(num_files)]
+                  )
+queue_length = [random.randrange(0, 100) for _ in range(num_servers)]   # sum of the size of files in each queue
+
+
+reward_params = dict(alpha=0.5, psi=10, mu=1, beta=0.3)
