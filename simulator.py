@@ -167,7 +167,8 @@ class Simulator:
 
             self.make_event(t, source=self.user, destination=self.user, path_idx=0, event_path=event_path_hit, start=True, data=req_data, svr=svr)
 
-    def make_process_event(self, bc, **kwargs):
+
+    def make_process_event(self, svr, **kwargs):
         data = kwargs['data']
         processing_t = data.size / self.env['bandwidth']
         processing_t = timedelta(seconds=processing_t)
@@ -179,7 +180,7 @@ class Simulator:
         }
         kwargs.update(input_value)
 
-        self.make_func_event(self.T + processing_t, bc.processing_end, **kwargs)  # pop bc queue
+        self.make_func_event(self.T + processing_t, svr.processing_end, **kwargs)  # pop bc queue
         self.make_event(self.T + processing_t, **kwargs)
 
 

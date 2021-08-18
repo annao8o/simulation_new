@@ -1,4 +1,3 @@
-from dataLoader import DataLoader
 import numpy as np
 
 class Environment:

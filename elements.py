@@ -7,11 +7,13 @@ from datetime import timedelta
 from collections import deque
 from configure import *
 import matplotlib.pyplot as plt
+from policy import QlearningPolicy, GreedyPolicy
+from environment import *
 
-def cos_sim(A, B):
-    return np.dot(A, B) / (norm(A)*norm(B))
 
 
+
+'''
 def default_select_func(**kwargs):
     cn = kwargs['cooperative network']
     data = kwargs['data']
@@ -29,7 +31,10 @@ def default_select_func(**kwargs):
 
 def select_func_using_y():
     return
+'''
 
+def cos_sim(A, B):
+    return np.dot(A, B) / (norm(A)*norm(B))
 
 
 class Data:
@@ -230,9 +235,19 @@ class Controller:   # controller
         for i in range(len(popularity_lst)):
             self.svr_lst[i].set_popularity(popularity_lst[i, :])
 
-    def set_svr_cache(self, svr_idx, item):
-        if type(item) == np.ndarray:
-            self.caching_m
+    def set_svr_cache(self, svr_idx, cache_item):
+        if type(cache_item) == np.ndarray:
+            self.caching_map[svr_idx, :] = cache_item
+        elif type(cache_item) == list:
+            if len(cache_item) == self.env['num data']:
+                self.caching_map[svr_idx, :] = np.array(cache_item)
+            else:
+                raise Exception("array dimension unmatch: cache data must interger or array")
+
+        elif type(cache_item) == int:
+            self.caching_map[svr_idx, cache_item] = 1
+        else:
+            raise Exception("wrong type error: cache data must interger or array")
 
     def check_cache_in_svr(self, svr_idx, data_idx):
         return self.caching_map[svr_idx, data_idx]
@@ -243,11 +258,13 @@ class Controller:   # controller
     def make_CN(self, theta):
         checkList = [i for i in range(self.num_svr)]
         while checkList:
+            popularity_map = list()
             cn = CooperativeNet(self.num_svr, self)
             i = random.choice(checkList)
             checkList.remove(i)
             cn.add_svr(i)
             self.svr_lst[i].set_CN(cn)
+            popularity_map.append(self.svr_lst[i].popularity)
 
             # print(i, list(self.graph.neighbors(i)))
             # print(self.graph.edges())
@@ -259,9 +276,12 @@ class Controller:   # controller
                             checkList.remove(n)
                             cn.add_svr(n)
                             self.svr_lst[n].set_CN(cn)
+                            popularity_map.append(self.svr_lst[n].popularity)
                         else:
                             checkList.remove(n)
+            cn.set_q_env(popularity_map)
             self.CN_lst.append(cn)
+
 
 
     def rtt_mapping(self):
@@ -272,17 +292,21 @@ class Controller:   # controller
                 self.rtt_map[i, j] = length
                 self.rtt_map[j, i] = length
 
-    def init_caching(self, **kwargs):
+    def init_caching(self):
         self.caching_map = np.zeros_like(self.caching_map) if any(self.caching_map > 0) else self.caching_map
 
         for svr in self.svr_lst:
             svr.storage_usage = 0
             self.usable_storage[svr.id] = svr.get_usable_storage()
-            svr.lambda_i = 0.0
+            # svr.lambda_i = 0.0
             svr.clear()
 
         for cn in self.CN_lst:
-            cn.caching_policy(**kwargs)
+            result = cn.caching_policy()
+            for r in range(len(result)):
+                self.set_svr_cache(cn.svr_lst[r].id, result[r])
+
+        return self.caching_map
 
     def clearCN(self):
         self.CN_lst = list()
@@ -296,19 +320,36 @@ class CooperativeNet:   # Cluster (=Sub-region)
     def __init__(self, num_svr=1, ctrl=None):
         self.svr_lst = np.zeros(num_svr, dtype=np.bool_)
         self.ctrl = ctrl
+        self.env = None
+        self.Q = None
+        self.policy = None
+        self.queue_length = list()
+
+
+    def set_q_env(self, popularity):
+        for s in self.ctrl.svr_lst:
+            if self.svr_lst[s.id]:
+                self.queue_length.append(len(s.queue))
+        num_data = self.ctrl.num_data
+        cache_size = self.ctrl.svr_lst[0].capacity
+
+        self.env = Environment(popularity, cache_size, len(self.svr_lst), num_data, reward_params, env_params, self.queue_length)
+        self.Q = np.zeros([self.env.n_states, self.env.n_actions])
+        self.policy = QlearningPolicy(self.env, gamma, self.Q)
+
 
     def add_svr(self, svr):
         if type(svr) == int:
             self.svr_lst[svr] = True
-            self.ctrl.svr_lst[svr].sub_region = self
+            # self.ctrl.svr_lst[svr].sub_region = self
 
         elif type(svr) == list:
             for idx in svr:
                 self.svr_lst[idx] = True
-                self.ctrl.svr_lst[idx].sub_region = self
-
+                # self.ctrl.svr_lst[idx].sub_region = self
         else:
             raise Exception("Func add_svr: Wrong type error -> %s can not handle in this function" %type(svr))
+
 
     def isContain(self, data):
         if type(data) == int:
@@ -339,8 +380,52 @@ class CooperativeNet:   # Cluster (=Sub-region)
         print("==============================================")
 
 
-    def caching_policy(self, **kwargs):
-        return
+    def caching_policy(self):
+        steps = []
+        all_costs = []
+        for episode in range(num_episodes):
+            observation = self.env.reset()  # 환경 초기화
+            step = 0
+            cost = 0
+            episode_reward = 0
+
+            while True:
+                # print("episode:", episode, "step:", step)
+                s = self.env.states.index(observation['state'])
+                # print("State: ", observation['state'])
+
+                action = self._act(s)
+                # print("action =", action)
+                observation_next, reward, done = self.env.step(action)
+
+                s_next = self.env.states.index(observation_next['state'])
+                cost += self._update_q_value(s, action, reward, s_next, eta)
+
+                # Swap observation
+                observation = observation_next
+
+                step += 1
+                episode_reward += reward
+
+                if done:
+                    steps += [step]
+                    all_costs += [cost]
+                    break
+
+            print("Episode: {} / {}, reward: {}, cost: {}".format(episode + 1, num_episodes, episode_reward, cost))
+
+        result = self.env.get_cache_mat
+
+        return result
+
+
+    # For q-learning
+    def _update_q_value(self, observation, action, reward, observation_next, alpha):
+        return self.policy.update_q_value(observation, action, reward, observation_next, alpha)
+
+    def _act(self, state):
+        return self.policy.act(state)
+
 
 class Cloud:
     def __init__(self, rtt, bandwidth):

@@ -72,8 +72,3 @@ class MECServer:
             print("Cache the file {} to server {}".format(file, self.id))
         else:
             print("Cache {} is already full.".format(self.id))
-
-
-
-
-

@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     if args.init_cache:
         y = np.full(env['num data'], 1)
-        ctrl.init_caching(y=y, select_func=select_func) #select_func => 'greedy', 'RL', ...
+        ctrl.init_caching()
 
 
     data = data_lst[0]
