@@ -92,7 +92,7 @@ user_rtt = (0.001, 0.002)
 cache_capacity = 6 * 1024 * 1024 * 8
 request_file = 'requests.bin'
 integrated_file = 'integrated.bin'
-
+caching_file = 'caching.bin'
 
 
 gamma = 0.99

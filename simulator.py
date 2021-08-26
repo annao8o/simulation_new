@@ -38,6 +38,7 @@ class Simulator:
     def __init__(self):
         self.result = None
 
+        '''
         def r_f(simulator, result):
             if result is None:
                 pass
@@ -51,8 +52,9 @@ class Simulator:
                     simulator.result['sum_hit_delay'] += result['total delay']
                     simulator.result['sum_waiting_delay'] += result['waiting delay']
                     simulator.result['total_hit'] += 1
+        '''
 
-        self.result_func = r_f
+        # self.result_func = r_f
         self.env = None
         self.T = None   # current time
         self.event_q = None
@@ -77,6 +79,80 @@ class Simulator:
                        'total_request_end': 0
                        }
         self.ctrl = ctrl
+
+    def insert_request_lst(self, requests):
+        for svr, t, data in requests:
+            if type(t) != timedelta:
+                t = timedelta(seconds=t)
+            req_data = RequestedData(data, t, svr)
+            # req_data = data
+
+            # self.make_event(t, source=self.user, destination=self.user, start=True, data=req_data, svr=svr)
+            self.make_event(t, source=self.user, destination=self.user, path_idx=0, event_path=event_path_hit, start=True, data=req_data, svr=svr)
+
+
+    def make_event(self, time, **kwargs):
+        path_info = kwargs['event_path'][kwargs['path_idx']]    #0:start / 1:path_check / 2:request / 3:process / 4:end
+        if path_info[1] == EventType.start:
+            kwargs['source'] = self.find_target_obj(path_info[0])   #path_info[0] = NetworkElements.user
+        kwargs['destination'] = self.find_target_obj(path_info[0], kwargs['source'], kwargs['data'])
+
+        event_path, next_idx = self.find_next_event(**kwargs)
+        kwargs['event_path'] = event_path
+        kwargs['next_idx'] = next_idx
+
+        event = Event(self, time, event_func, kwargs, path_info[1])
+        self.insert_event(event)
+
+
+    def find_target_obj(self, target_element, source_obj=None, data_obj=None):
+        if target_element == NetworkElement.user:
+            return self.user
+
+        elif target_element == NetworkElement.MECsvr:
+            if source_obj is None or data_obj is None:
+                raise Exception("need source and data object")
+            type_source = type(source_obj)
+            if User in (type_source, source_obj):
+                if directfind:
+                    near_svr = data_obj.near_svr
+                    svr_idx, _ = near_svr.cn.shortest_cache(near_svr, data_obj)
+                else:
+                    svr_idx = data_obj.near_svr.id
+
+            elif MECServer in (type_source, source_obj):
+                svr_idx, _ = source_obj.cluster.shortest_cache(source_obj, data_obj)
+
+            elif Cloud in (type_source, source_obj):
+                svr_idx = data_obj.near_svr
+            else:
+                raise Exception("network element %s is not handled in this function" % source_obj)
+            return self.ctrl.svr_lst[svr_idx]
+
+        elif target_element == NetworkElement.cloud:
+            return self.cloud
+
+        else:
+            raise Exception("network element %s is not handled in this function" % type(target_element))
+
+
+    def find_next_event(self, **kwargs):
+        if kwargs['path_idx'] + 1 < len(kwargs['event_path']):  # not end
+            next_element_info = kwargs['event_path'][kwargs['path_idx']]
+            if next_element_info[1] == EventType.path_check:
+                return self.path_check(**kwargs), split_point + 1
+            else:
+                return kwargs['event_path'], kwargs['path_idx'] + 1
+        else:
+            return kwargs['event_path'], -1
+
+
+    def path_check(self, **kwargs):
+        if kwargs['data'].near_svr.check_CN(kwargs['data']):
+            return event_path_hit
+        else:
+            return event_path_miss
+
 
     def insert_event(self, event):
         if len(self.event_q) > 0:
@@ -123,49 +199,10 @@ class Simulator:
             self.event_q.append(event)
 
 
-    def make_event(self, time, **kwargs):
-        path_info = kwargs['event_path'][kwargs['path_idx']]
-        if path_info[1] == EventType.start:
-            kwargs['source'] = self.find_target_obj(path_info[0])
-        kwargs['destination'] = self.find_target_obj(path_info[0], kwargs['source'], kwargs['data'])
-
-        event_path, next_idx = self.find_next_event(**kwargs)
-        kwargs['event_path'] = event_path
-        kwargs['next_idx'] = next_idx
-
-        event = Event(self, time, event_func, kwargs, path_info[1])
-        self.insert_event(event)
-
-    def path_check(self, **kwargs):
-        if kwargs['data'].near_svr.check_CN(kwargs['data']):
-            return event_path_hit
-        else:
-            return event_path_miss
 
     def make_func_event(self, time, func, **kwargs):
         event = Event(self, time, func, kwargs)
         self.insert_event(event)
-
-    def find_next_event(self, **kwargs):
-        if kwargs['path_idx']+1 < len(kwargs['event_path']):    # not end
-            next_element_info = kwargs['event_path'][kwargs['path_idx']]
-            if next_element_info[1] == EventType.path_check:
-                return self.path_check(**kwargs), split_point + 1
-            else:
-                return kwargs['event_path'], kwargs['path_idx'] + 1
-        else:
-            return kwargs['event_path'], -1
-
-
-
-    def insert_request_lst(self, requests):
-        for svr, t, data in requests:
-            if type(t) != timedelta:
-                t = timedelta(seconds=t)
-            req_data = RequestedData(data, t, svr)
-            # req_data = data
-
-            self.make_event(t, source=self.user, destination=self.user, path_idx=0, event_path=event_path_hit, start=True, data=req_data, svr=svr)
 
 
     def make_process_event(self, svr, **kwargs):
@@ -184,38 +221,6 @@ class Simulator:
         self.make_event(self.T + processing_t, **kwargs)
 
 
-    def find_target_obj(self, target_element, source_obj=None, data_obj=None):
-        if target_element == NetworkElement.user:
-            return self.user
-
-        elif target_element == NetworkElement.MECsvr:
-            if source_obj is None or data_obj is None:
-                raise Exception("need source and data object")
-            type_source = type(source_obj)
-            if User in (type_source, source_obj):
-                if directfind:
-                    near_svr = data_obj.near_svr
-                    svr_idx, _ = near_svr.cn.shortest_cache(near_svr, data_obj)
-                else:
-                    svr_idx = data_obj.near_svr.id
-
-            elif MECServer in (type_source, source_obj):
-                svr_idx, _ = source_obj.cluster.shortest_cache(source_obj, data_obj)
-
-            elif Cloud in (type_source, source_obj):
-                svr_idx = data_obj.near_svr
-            else:
-                raise Exception("network element %s is not handled in this function" % source_obj)
-            return self.ctrl.svr_lst[svr_idx]
-
-        elif target_element == NetworkElement.cloud:
-            return self.cloud
-
-        else:
-            raise Exception("network element %s is not handled in this function" % type(target_element))
-
-
-
     def update(self):   # running:0, end: 1, no event: -1
         if self.T <= self.end_time and self.event_q:
             event = self.event_q.popleft()
@@ -230,7 +235,7 @@ class Simulator:
 
 
 class Event:
-    def __init__(self, simulator=None, time=None, func=None, func_input=None, event_type=EventType.null):
+    def __init__(self, simulator=None, time=None, func=None, func_input=None, event_type=EventType.null):   #func_input: event_path, source, destination, event_path, next_idx
         self.time = time
         self.func = func
         self.input = func_input

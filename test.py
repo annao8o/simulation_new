@@ -47,11 +47,12 @@ if __name__ == "__main__":
     if args.load_flag:
         with open(os.path.join(args.load_path, integrated_file), 'rb') as f:
             load_data = pickle.load(f)
-            print("success to load")
+            print("success to load the integrated file")
         # z = load_data['zipf']
         data_lst = load_data['data list']
         cn = load_data['cooperative network']
         request_lst = load_data['request list']
+        args.load_cache = True
 
     else:   # initial generation
         args.init_graph = True
@@ -60,7 +61,6 @@ if __name__ == "__main__":
 
     if args.init_data:
         data_lst = [Data(i, size=random.randint(args.file_size[0], args.file_size[1])) for i in range(env['num data'])]  # data 생성
-        # global_popularity = get_zipfs_distribution(env['num data'], env['zskew_global_popularity)
         activity_level = get_zipfs_distribution(env['num user'], env['zipf activity'])
         location_prob = genLocality(env['num type'], env['num server'], env['zipf location'])
 
@@ -76,7 +76,6 @@ if __name__ == "__main__":
         local = calc_local_popularity(Q, A, activity_level)
 
         args.init_request = True
-        args.init_cache = True
 
     if args.init_graph:
         ctrl = Controller()
@@ -91,17 +90,18 @@ if __name__ == "__main__":
             env['num server'], env['arrival rate'], 60, env['end time'], data_lst, ctrl.svr_lst
         )
 
-    if args.init_cache:
-        y = np.full(env['num data'], 1)
-        ctrl.init_caching()
-
-
-    data = data_lst[0]
     if args.save_flag:
         with open(os.path.join(args.save_path, integrated_file), 'wb') as f:
             save_data = {'data list': data_lst, 'user list': user_lst, 'controller': ctrl, 'request list': request_lst}
             pickle.dump(save_data, f)
             print("success to save")
+
+    if args.load_cache:
+        # y = np.full(env['num data'], 1)
+        with open(os.path.join(args.load_path, caching_file), 'rb') as f:
+            y = pickle.load(f)
+            print("success to load the caching file")
+        ctrl.init_caching(y=y)
 
     s.init(ctrl)
     chk_length = 1000
@@ -131,8 +131,6 @@ if __name__ == "__main__":
 
 '''
     type_lst = generator.make_pref_type(args.num_type, args.num_data, args.zipf_preference)
-
-
 
     user_lst = []
     A = np.zeros((user_num, cell_num))

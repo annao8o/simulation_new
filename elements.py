@@ -157,7 +157,34 @@ class MECServer:
             return timedelta(seconds=self.ctrl.rtt_map[self.id, destination.id])
 
     def calc_service_time(self):
+        c_map = self.ctrl.caching_map[self.id, :]
+        self.service_time = 0
+
+        for i in range(len(c_map)):
+            T_i = 0
+            for f, x_if in enumerate(c_map[i]):
+                p_if = self.popularity[f]
+                f_size = self.ctrl.d_size_map[f]
+                t_iu = f_size / env_params['r_iu']
+
+                if x_if == 1:
+                    t_f = t_iu
+                elif np.nonzero(c_map[:, f]):
+                    h_cnt = 1   # graph 생성해서 hop number count 로 수정하기
+                    t_ji = f_size / self.env_params['r_ij'] * h_cnt
+                    t_f = t_iu + t_ji
+                else:
+                    t_ci = f_size / self.env_params['r_ci']
+                    t_f = t_iu + t_ci
+                T_i += p_if * t_f
+            total_dalay += (T_i + wait_delay)
+
         return
+
+    def calc_wait_time(self):
+
+        return
+
 
     def get_sample(self, size=None):
         zeta = np.r_[0.0, np.cumsum(self.popularity)]
@@ -379,7 +406,7 @@ class CooperativeNet:   # Cluster (=Sub-region)
         print("There are {} servers in cooperaitve network {}".format(self.svr_lst.tolist(), self))
         print("==============================================")
 
-
+    '''
     def caching_policy(self):
         steps = []
         all_costs = []
@@ -425,6 +452,7 @@ class CooperativeNet:   # Cluster (=Sub-region)
 
     def _act(self, state):
         return self.policy.act(state)
+    '''
 
 
 class Cloud:
