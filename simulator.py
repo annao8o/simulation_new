@@ -38,7 +38,7 @@ class Simulator:
     def __init__(self):
         self.result = None
 
-        '''
+
         def r_f(simulator, result):
             if result is None:
                 pass
@@ -52,9 +52,9 @@ class Simulator:
                     simulator.result['sum_hit_delay'] += result['total delay']
                     simulator.result['sum_waiting_delay'] += result['waiting delay']
                     simulator.result['total_hit'] += 1
-        '''
 
-        # self.result_func = r_f
+
+        self.result_func = r_f
         self.env = None
         self.T = None   # current time
         self.event_q = None

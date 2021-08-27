@@ -35,6 +35,7 @@ class ArgsParser:
         self.parser.add_argument('-zl', '--zipf_location', default=1.0, type=float,
                                  help='zipf skewness parameter of location probability')
         self.parser.add_argument('-f', '--file_size', nargs=2, default=[1000 * 1024 * 8, 1200 * 1024 * 8], type=int, help='file size')
+        self.parser.add_argument('-cs', '--cache_size', default=6 * 1024 * 1024 * 8, type=int, help='cache size')
 
         self.parser.add_argument('--save_flag', action='store_true')
         self.parser.add_argument('--load_flag', action='store_true')

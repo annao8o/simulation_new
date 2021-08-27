@@ -63,8 +63,6 @@ class GreedyPolicy:
 
         return mat_x
 
-
-
     def calculate_theta(self, mat_x):
         theta = np.zeros(self.mat_x.shape)
         h_f = np.sum(self.mat_x, axis=1) * self.l

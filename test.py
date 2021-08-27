@@ -31,6 +31,7 @@ if __name__ == "__main__":
         'num user': args.num_user,
         'num data': args.num_data,
         'num type': args.num_type,
+        'cache size': args.cache_size,
         'end time': timedelta(seconds=args.end_time),
         'arrival rate': args.arrival,
         'cloud rtt': args.cloud_rtt,
@@ -50,7 +51,7 @@ if __name__ == "__main__":
             print("success to load the integrated file")
         # z = load_data['zipf']
         data_lst = load_data['data list']
-        cn = load_data['cooperative network']
+        ctrl = load_data['controller']
         request_lst = load_data['request list']
         args.load_cache = True
 
@@ -92,36 +93,36 @@ if __name__ == "__main__":
 
     if args.save_flag:
         with open(os.path.join(args.save_path, integrated_file), 'wb') as f:
-            save_data = {'data list': data_lst, 'user list': user_lst, 'controller': ctrl, 'request list': request_lst}
+            save_data = {'network_env': env, 'data list': data_lst, 'user list': user_lst, 'controller': ctrl, 'request list': request_lst}
             pickle.dump(save_data, f)
             print("success to save")
 
+    # load the caching map file
     if args.load_cache:
-        # y = np.full(env['num data'], 1)
         with open(os.path.join(args.load_path, caching_file), 'rb') as f:
             y = pickle.load(f)
             print("success to load the caching file")
         ctrl.init_caching(y=y)
 
-    s.init(ctrl)
-    chk_length = 1000
-    buff_time = timedelta(seconds=60)
-    front_idx = 0
-    rear_idx = 1
+        s.init(ctrl)
+        chk_length = 1000
+        buff_time = timedelta(seconds=60)
+        front_idx = 0
+        rear_idx = 1
 
-    state = 0
-    front_t = timedelta(seconds=0)
+        state = 0
+        front_t = timedelta(seconds=0)
 
-    while state == 0:
-        if front_t < s.T + buff_time and front_idx < len(request_lst):
-            while rear_idx < len(request_lst) and request_lst[rear_idx - 1][1] < s.T + buff_time:   #request_lst[][1]: time
-                rear_idx += chk_length
-                rear_idx = rear_idx if rear_idx < len(request_lst) else len(request_lst)
-            s.insert_request_lst(request_lst[front_idx:rear_idx])
-            front_idx = rear_idx
-            front_idx = front_idx if front_idx < len(request_lst) else len(request_lst)
-            front_t = request_lst[front_idx][1] if front_idx < len(request_lst) else request_lst[-1][1]
-        state = s.update()
+        while state == 0:
+            if front_t < s.T + buff_time and front_idx < len(request_lst):
+                while rear_idx < len(request_lst) and request_lst[rear_idx - 1][1] < s.T + buff_time:   #request_lst[][1]: time
+                    rear_idx += chk_length
+                    rear_idx = rear_idx if rear_idx < len(request_lst) else len(request_lst)
+                s.insert_request_lst(request_lst[front_idx:rear_idx])
+                front_idx = rear_idx
+                front_idx = front_idx if front_idx < len(request_lst) else len(request_lst)
+                front_t = request_lst[front_idx][1] if front_idx < len(request_lst) else request_lst[-1][1]
+            state = s.update()
 
     # if args.output_path is not None:
     #     with open(args.output_path, 'wb') as f:

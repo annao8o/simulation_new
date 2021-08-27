@@ -7,10 +7,6 @@ from datetime import timedelta
 from collections import deque
 from configure import *
 import matplotlib.pyplot as plt
-from policy import QlearningPolicy, GreedyPolicy
-from environment import *
-
-
 
 
 '''
@@ -306,7 +302,6 @@ class Controller:   # controller
                             popularity_map.append(self.svr_lst[n].popularity)
                         else:
                             checkList.remove(n)
-            cn.set_q_env(popularity_map)
             self.CN_lst.append(cn)
 
 
@@ -347,23 +342,6 @@ class CooperativeNet:   # Cluster (=Sub-region)
     def __init__(self, num_svr=1, ctrl=None):
         self.svr_lst = np.zeros(num_svr, dtype=np.bool_)
         self.ctrl = ctrl
-        self.env = None
-        self.Q = None
-        self.policy = None
-        self.queue_length = list()
-
-
-    def set_q_env(self, popularity):
-        for s in self.ctrl.svr_lst:
-            if self.svr_lst[s.id]:
-                self.queue_length.append(len(s.queue))
-        num_data = self.ctrl.num_data
-        cache_size = self.ctrl.svr_lst[0].capacity
-
-        self.env = Environment(popularity, cache_size, len(self.svr_lst), num_data, reward_params, env_params, self.queue_length)
-        self.Q = np.zeros([self.env.n_states, self.env.n_actions])
-        self.policy = QlearningPolicy(self.env, gamma, self.Q)
-
 
     def add_svr(self, svr):
         if type(svr) == int:
