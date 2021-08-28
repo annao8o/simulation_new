@@ -114,6 +114,7 @@ class Environment:
     def reward_func(self, ob, ob_new):
         d_old = self.calc_total_delay(ob)
         d_new = self.calc_total_delay(ob_new)
+        # print(d_old, d_new)
 
         if d_old >= d_new:
             return 1
@@ -130,6 +131,7 @@ class Environment:
 
 
     def calc_lambda_if(self, popularity, svr_idx, file_idx):
+        # print('arrival rate: ', self.network_env['arrival rate'], 'cache mat:', self.cache_mat[svr_idx][file_idx])
         return self.network_env['arrival rate'] * self.cache_mat[svr_idx][file_idx] * popularity
 
 
@@ -140,6 +142,8 @@ class Environment:
             e2 = 0
             for f in range(self.num_files):
                 lambda_if = self.calc_lambda_if(ob['popularity'][i][f], i, f)
+                # print('popularity: ', ob['popularity'][i][f])
+                # print('lambda: ', lambda_if)
                 service_t = self.get_size(f) / self.network_env['bandwidth']
                 e2 += pow(service_t, 2) * lambda_if
                 e1 += service_t * lambda_if
@@ -157,6 +161,7 @@ class Environment:
                 p_if = ob['popularity'][i][f]
                 f_size = self.get_size(f)
                 t_iu = f_size / env_params['r_iu']
+                #print(f_size, env_params['r_iu'])
                 if x_if == 1:
                     t_f = t_iu
                 elif list(np.nonzero(matrix[:, f])[0]):
@@ -169,7 +174,7 @@ class Environment:
                     t_ci = f_size / env_params['r_ci']
                     t_f = t_iu + t_ci
                 T_i += p_if * t_f
-
+            #print(T_i)
             trans_time[i] = T_i
         return trans_time
 
@@ -185,12 +190,14 @@ class Environment:
 
         sum_delay = trans_time + wait_time # + service_time
         total_dalay = np.sum(sum_delay)
+        # print(total_dalay)
 
         return total_dalay
 
 
     def get_size(self, file):
         #return self.env_params['file_size'][file]
+        # print(self.ctrl.d_size_map)
         return self.ctrl.d_size_map[file]
 
 

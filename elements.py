@@ -239,6 +239,9 @@ class Controller:   # controller
         else:
             raise Exception("wrong type error: %s is not acceptable for data list" % type(data_lst))
 
+        for data in self.data_lst:
+            self.d_size_map[data.id] = data.size
+
         for i in range(self.num_svr):
             svr = MECServer(i, self)
             self.svr_lst.append(svr)
