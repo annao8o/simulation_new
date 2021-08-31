@@ -38,6 +38,7 @@ def run(env, agent):
         break
 
   env.display()
+  env.save()
   agent.plot_results(steps, all_costs)
 
 if __name__ == "__main__":

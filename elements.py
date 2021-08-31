@@ -107,6 +107,7 @@ class MECServer:
         self.popularity = None
         self.service_time = 0
         self.cn = None
+        self.processing_event = None    #event in processing
 
     def set_popularity(self, p):
         self.popularity = p
@@ -139,12 +140,12 @@ class MECServer:
         else:
             return -1
 
-    def processing_end(self, time=None, **_):
+    def processing_end(self, **_):
         self.processing_event = None
         kwargs = self.pop_request()
         if kwargs != -1:
             self.processing_event = kwargs['data']
-            kwargs['simulator'].make_process_event(self, **kwargs)
+            kwargs['simulator'].make_process_event(svr=self, **kwargs)
 
     def calc_rtt(self, destination=None):
         if destination is None or destination is User:
@@ -192,6 +193,7 @@ class MECServer:
             f = np.random.random(size)
 
         return np.searchsorted(cdf, f) - 1
+
 
     def append_request(self, **kwargs):
         kwargs['data'].set_queueing(kwargs['simulator'].T)
@@ -261,6 +263,7 @@ class Controller:   # controller
         for i in range(len(popularity_lst)):
             self.svr_lst[i].set_popularity(popularity_lst[i, :])
 
+    '''
     def set_svr_cache(self, svr_idx, cache_item):
         if type(cache_item) == np.ndarray:
             self.caching_map[svr_idx, :] = cache_item
@@ -274,6 +277,7 @@ class Controller:   # controller
             self.caching_map[svr_idx, cache_item] = 1
         else:
             raise Exception("wrong type error: cache data must interger or array")
+    '''
 
     def check_cache_in_svr(self, svr_idx, data_idx):
         return self.caching_map[svr_idx, data_idx]
@@ -306,6 +310,7 @@ class Controller:   # controller
                         else:
                             checkList.remove(n)
             self.CN_lst.append(cn)
+        print("the number of clusters: ",len(self.CN_lst))
 
 
 
@@ -317,21 +322,22 @@ class Controller:   # controller
                 self.rtt_map[i, j] = length
                 self.rtt_map[j, i] = length
 
-    def init_caching(self):
-        self.caching_map = np.zeros_like(self.caching_map) if any(self.caching_map > 0) else self.caching_map
+    def init_caching(self, y):
+        self.caching_map = y
 
-        for svr in self.svr_lst:
-            svr.storage_usage = 0
-            self.usable_storage[svr.id] = svr.get_usable_storage()
-            # svr.lambda_i = 0.0
-            svr.clear()
+        # for svr in self.svr_lst:
+        #     svr.storage_usage = 0
+        #     self.usable_storage[svr.id] = svr.get_usable_storage()
+        #     # svr.lambda_i = 0.0
+        #     svr.clear()
+        #
+        # for cn in self.CN_lst:
+        #     result = cn.caching_policy()
+        #     for r in range(len(result)):
+        #         self.set_svr_cache(cn.svr_lst[r].id, result[r])
 
-        for cn in self.CN_lst:
-            result = cn.caching_policy()
-            for r in range(len(result)):
-                self.set_svr_cache(cn.svr_lst[r].id, result[r])
+        # return self.caching_map
 
-        return self.caching_map
 
     def clearCN(self):
         self.CN_lst = list()
@@ -387,53 +393,6 @@ class CooperativeNet:   # Cluster (=Sub-region)
         print("There are {} servers in cooperaitve network {}".format(self.svr_lst.tolist(), self))
         print("==============================================")
 
-    '''
-    def caching_policy(self):
-        steps = []
-        all_costs = []
-        for episode in range(num_episodes):
-            observation = self.env.reset()  # 환경 초기화
-            step = 0
-            cost = 0
-            episode_reward = 0
-
-            while True:
-                # print("episode:", episode, "step:", step)
-                s = self.env.states.index(observation['state'])
-                # print("State: ", observation['state'])
-
-                action = self._act(s)
-                # print("action =", action)
-                observation_next, reward, done = self.env.step(action)
-
-                s_next = self.env.states.index(observation_next['state'])
-                cost += self._update_q_value(s, action, reward, s_next, eta)
-
-                # Swap observation
-                observation = observation_next
-
-                step += 1
-                episode_reward += reward
-
-                if done:
-                    steps += [step]
-                    all_costs += [cost]
-                    break
-
-            print("Episode: {} / {}, reward: {}, cost: {}".format(episode + 1, num_episodes, episode_reward, cost))
-
-        result = self.env.get_cache_mat
-
-        return result
-
-
-    # For q-learning
-    def _update_q_value(self, observation, action, reward, observation_next, alpha):
-        return self.policy.update_q_value(observation, action, reward, observation_next, alpha)
-
-    def _act(self, state):
-        return self.policy.act(state)
-    '''
 
 
 class Cloud:

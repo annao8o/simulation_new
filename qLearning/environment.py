@@ -1,6 +1,8 @@
 # from qLearning.dataLoader import DataLoader
 from qLearning.config import *
 import numpy as np
+import os
+import pickle
 
 
 class Environment:
@@ -53,6 +55,12 @@ class Environment:
         print("The cache matrix X is \n", self.cache_mat)
         print("The popularity is \n", self.popularity)
 
+    def save(self):
+        with open(os.path.join(save_path, save_file), 'wb') as f:
+            save_data = self.cache_mat
+            pickle.dump(save_data, f)
+            print("success to save the caching map")
+
 
     def show_rate(self, w):
         if w == "miss":
@@ -63,7 +71,18 @@ class Environment:
 
 
     def hasDone(self):
-        return np.any(np.count_nonzero(self.cache_mat) >= self.cache_size * self.num_svrs)
+        result = True
+        for s in range(self.num_svrs):
+            result *= self.check_capacity(s)
+
+        return result
+        # sum_data = 0
+        # data_idx = np.where(self.cache_mat[self.state[0]] == 1)
+        # for data in data_idx:
+        #     sum_data += self.get_size(self.data_lst[data])
+        # return sum_data >= self.cache_size
+        # return np.any(np.count_nonzero(self.cache_mat) >= self.cache_size * self.num_svrs)
+
 
 
     def reset(self):
@@ -88,7 +107,13 @@ class Environment:
                 if s[1] == self.state[1]:
                     self.r_states.remove(s)
 
-        self.check_capacity()
+        if self.check_capacity(self.state[0]):
+            tmp = []
+            for s in self.r_states:
+                if s[0] == self.state[0]:
+                    tmp.append(s)
+            for t in tmp:
+                self.r_states.remove(t)
 
         if self.r_states:
             self.state = self.r_states[np.random.randint(0, len(self.r_states))]
@@ -101,14 +126,22 @@ class Environment:
         return observation_new, reward, self.hasDone()
 
 
-    def check_capacity(self):
-        tmp = []
-        if np.any(np.count_nonzero(self.cache_mat[self.state[0]]) >= self.cache_size):
-            for s in self.r_states:
-                if s[0] == self.state[0]:
-                    tmp.append(s)
-            for t in tmp:
-                self.r_states.remove(t)
+    def check_capacity(self, s_):
+        sum_data = 0
+        data_idx = np.where(self.cache_mat[s_] == 1)
+        if np.any(data_idx):
+            for data in data_idx[0]:
+                sum_data += self.get_size(data)
+
+        if sum_data >= self.cache_size:
+            return True
+        else:
+            return False
+            # for s in self.r_states:
+            #     if s[0] == self.state[0]:
+            #         tmp.append(s)
+            # for t in tmp:
+            #     self.r_states.remove(t)
 
 
     def reward_func(self, ob, ob_new):

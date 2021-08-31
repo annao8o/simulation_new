@@ -38,10 +38,10 @@ class ArgsParser:
         self.parser.add_argument('-cs', '--cache_size', default=6 * 1024 * 1024 * 8, type=int, help='cache size')
 
         self.parser.add_argument('--save_flag', action='store_true')
-        self.parser.add_argument('--load_flag', action='store_true')
+        self.parser.add_argument('--load_flag', action='store_false')
         self.parser.add_argument('-ig', '--init_graph', action='store_true')
         self.parser.add_argument('-ir', '--init_request', action='store_true')
-        self.parser.add_argument('-ic', '--init_cache', action='store_true')
+        self.parser.add_argument('-lc', '--load_cache', action='store_false')
         self.parser.add_argument('-id', '--init_data', action='store_true')
 
         self.parser.add_argument('-sp', '--save_path', type=str, default='./save/')
@@ -93,13 +93,4 @@ user_rtt = (0.001, 0.002)
 cache_capacity = 6 * 1024 * 1024 * 8
 request_file = 'requests.bin'
 integrated_file = 'integrated.bin'
-caching_file = 'caching.bin'
-
-
-gamma = 0.99
-eta = 0.5
-max_steps = 200
-num_episodes = 1000
-env_params = dict(r_iu=1, r_ij=10, r_ci=100) # r_iu: transmission rate between user and MEC
-# queue_length = [random.randrange(0, 100) for _ in range(num_servers)]   # sum of the size of files in each queue
-reward_params = dict(alpha=0.5, psi=10, mu=1, beta=0.3)
+caching_file = 'caching_map.bin'

@@ -61,7 +61,7 @@ class Simulator:
         self.end_time = None
         self.user = User
         self.cloud = None
-        self.ctrl= None
+        self.ctrl = None
 
     def set_env(self, env):
         self.env = env
@@ -121,7 +121,7 @@ class Simulator:
                     svr_idx = data_obj.near_svr.id
 
             elif MECServer in (type_source, source_obj):
-                svr_idx, _ = source_obj.cluster.shortest_cache(source_obj, data_obj)
+                svr_idx, _ = source_obj.cn.shortest_cache(source_obj, data_obj)
 
             elif Cloud in (type_source, source_obj):
                 svr_idx = data_obj.near_svr
@@ -217,7 +217,7 @@ class Simulator:
         }
         kwargs.update(input_value)
 
-        self.make_func_event(self.T + processing_t, svr.processing_end, **kwargs)  # pop bc queue
+        self.make_func_event(self.T + processing_t, svr.processing_end, **kwargs)  # pop server queue
         self.make_event(self.T + processing_t, **kwargs)
 
 

@@ -22,6 +22,30 @@ def get_zipfs_distribution(num, z_val):
 
     return dist
 
+def simulation(controller, simulator, requests):
+    ctrl.init_caching(y=y)
+
+    s.init(ctrl)
+    chk_length = 1000
+    buff_time = timedelta(seconds=60)
+    front_idx = 0
+    rear_idx = 1
+
+    state = 0
+    front_t = timedelta(seconds=0)
+
+    while state == 0:
+        if front_t < s.T + buff_time and front_idx < len(request_lst):
+            while rear_idx < len(request_lst) and request_lst[rear_idx - 1][1] < s.T + buff_time:  # request_lst[][1]: time
+                rear_idx += chk_length
+                rear_idx = rear_idx if rear_idx < len(request_lst) else len(request_lst)
+            s.insert_request_lst(request_lst[front_idx:rear_idx])
+            front_idx = rear_idx
+            front_idx = front_idx if front_idx < len(request_lst) else len(request_lst)
+            front_t = request_lst[front_idx][1] if front_idx < len(request_lst) else request_lst[-1][1]
+        state = s.update()
+
+
 
 if __name__ == "__main__":
     parser = ArgsParser()
@@ -53,6 +77,9 @@ if __name__ == "__main__":
         data_lst = load_data['data list']
         ctrl = load_data['controller']
         request_lst = load_data['request list']
+        args.init_graph = False
+        args.init_data = False
+        args.init_request = False
         args.load_cache = True
 
     else:   # initial generation
@@ -102,27 +129,8 @@ if __name__ == "__main__":
         with open(os.path.join(args.load_path, caching_file), 'rb') as f:
             y = pickle.load(f)
             print("success to load the caching file")
-        ctrl.init_caching(y=y)
 
-        s.init(ctrl)
-        chk_length = 1000
-        buff_time = timedelta(seconds=60)
-        front_idx = 0
-        rear_idx = 1
-
-        state = 0
-        front_t = timedelta(seconds=0)
-
-        while state == 0:
-            if front_t < s.T + buff_time and front_idx < len(request_lst):
-                while rear_idx < len(request_lst) and request_lst[rear_idx - 1][1] < s.T + buff_time:   #request_lst[][1]: time
-                    rear_idx += chk_length
-                    rear_idx = rear_idx if rear_idx < len(request_lst) else len(request_lst)
-                s.insert_request_lst(request_lst[front_idx:rear_idx])
-                front_idx = rear_idx
-                front_idx = front_idx if front_idx < len(request_lst) else len(request_lst)
-                front_t = request_lst[front_idx][1] if front_idx < len(request_lst) else request_lst[-1][1]
-            state = s.update()
+        simulation(controller=ctrl, simulator=s, requests=request_lst)
 
     # if args.output_path is not None:
     #     with open(args.output_path, 'wb') as f:
