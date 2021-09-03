@@ -6,6 +6,7 @@ from simulator import *
 import os
 import pickle
 from request import make_request_events
+from cacheAlgo import CacheAlgo
 
 
 def get_zipfs_distribution(num, z_val):
@@ -22,29 +23,60 @@ def get_zipfs_distribution(num, z_val):
 
     return dist
 
-def simulation(controller, simulator, requests):
-    ctrl.init_caching(y=y)
+def simulation(ctrl, s, request_lst):
+    for svr in ctrl.svr_lst:
+        zeta = np.r_[0.0, np.cumsum(svr.popularity)]
+        cdf = [x / zeta[-1] for x in zeta]
+        print("server id:{}\ncdf:{}".format(svr.id, cdf))
+    # for svr in ctrl.svr_lst:
+    #     sorted_lst = list(np.argsort(svr.popularity))
+    #     ranking_lst = list()
+    #     for f in ctrl.data_lst:
+    #         ranking_lst.append(sorted_lst.index(f.id))
+    #     print("server id:{}\nranking:{}".format(svr.id, ranking_lst))
+
+    total_request = 0
+    # total_hit = [[] for _ in range(len(ctrl.svr_lst))]
+    # total_delay = [[] for _ in range(len(ctrl.svr_lst))]
+
+    # ctrl.init_caching(y=y)
+
+    # for ctrl in cloud.ctrl_lst:
+    algo1 = CacheAlgo('proposed', ctrl.rtt_map, env)
+    algo2 = CacheAlgo('greedy', ctrl.rtt_map, env)
+    ctrl.add_algo(algo1)
+    #ctrl.add_algo(algo2)
+
+    total_hit = [0 for _ in range(len(ctrl.algo_lst))]
+    total_delay = [0 for _ in range(len(ctrl.algo_lst))]
 
     s.init(ctrl)
-    chk_length = 1000
-    buff_time = timedelta(seconds=60)
     front_idx = 0
-    rear_idx = 1
+    t = 0
+    print(request_lst[-1])
 
-    state = 0
-    front_t = timedelta(seconds=0)
+    for algo in ctrl.algo_lst:
+        algo.init_caching(y)
 
-    while state == 0:
-        if front_t < s.T + buff_time and front_idx < len(request_lst):
-            while rear_idx < len(request_lst) and request_lst[rear_idx - 1][1] < s.T + buff_time:  # request_lst[][1]: time
-                rear_idx += chk_length
-                rear_idx = rear_idx if rear_idx < len(request_lst) else len(request_lst)
-            s.insert_request_lst(request_lst[front_idx:rear_idx])
-            front_idx = rear_idx
-            front_idx = front_idx if front_idx < len(request_lst) else len(request_lst)
-            front_t = request_lst[front_idx][1] if front_idx < len(request_lst) else request_lst[-1][1]
-        state = s.update()
+    while t < env['end time']:
+        #if t % update_period == 0:
+            # ctrl.make_CN()
+        #ctrl.init_caching(y)
 
+        while front_idx < len(request_lst) and request_lst[front_idx][1] <= t:
+            total_request += 1
+            # print(t, request_lst[front_idx][1])
+            svr = request_lst[front_idx][0]
+            data = request_lst[front_idx][2]
+            hit_lst, delay_lst = ctrl.add_request(RequestedData(data, t, svr))
+            total_hit = [sum(x) for x in zip(total_hit, hit_lst)]
+            total_delay = [sum(x) for x in zip(total_delay, delay_lst)]
+            front_idx += 1
+        t += 1
+
+    print(total_request)
+    print(total_hit)
+    print(total_delay)
 
 
 if __name__ == "__main__":
@@ -56,7 +88,7 @@ if __name__ == "__main__":
         'num data': args.num_data,
         'num type': args.num_type,
         'cache size': args.cache_size,
-        'end time': timedelta(seconds=args.end_time),
+        'end time': args.end_time,
         'arrival rate': args.arrival,
         'cloud rtt': args.cloud_rtt,
         'rtt': args.rtt,
@@ -130,7 +162,7 @@ if __name__ == "__main__":
             y = pickle.load(f)
             print("success to load the caching file")
 
-        simulation(controller=ctrl, simulator=s, requests=request_lst)
+        simulation(ctrl=ctrl, s=s, request_lst=request_lst)
 
     # if args.output_path is not None:
     #     with open(args.output_path, 'wb') as f:

@@ -45,10 +45,10 @@ class Data:
             return False
 
 class RequestedData(Data):
-    def __init__(self, data, request_time, near_svr=None):
+    def __init__(self, data, request_time, svr=None):
         super().__init__(data.id, data.size)
         self.request_time = request_time
-        self.near_svr = near_svr
+        self.svr = svr
         self.queueing_time = None
 
     def set_queueing(self, T):
@@ -109,6 +109,8 @@ class MECServer:
         self.cn = None
         self.processing_event = None    #event in processing
 
+
+
     def set_popularity(self, p):
         self.popularity = p
 
@@ -134,18 +136,23 @@ class MECServer:
     def check_CN(self, data):    #check whether the data is stored in the sub-region
         return self.cn.isContain(data)
 
+    def add_request(self, request):
+        self.queue.append(request)
+
+
+
     def pop_request(self):
         if self.queue:
             return self.queue.popleft()
         else:
             return -1
 
-    def processing_end(self, **_):
+    def processing_end(self, **kwargs):
         self.processing_event = None
         kwargs = self.pop_request()
         if kwargs != -1:
             self.processing_event = kwargs['data']
-            kwargs['simulator'].make_process_event(svr=self, **kwargs)
+            kwargs['simulator'].make_process_event(self, **kwargs)
 
     def calc_rtt(self, destination=None):
         if destination is None or destination is User:
@@ -221,6 +228,7 @@ class Controller:   # controller
         self.graph = None
         self.d_size_map = None
         self.usable_storage = None
+        self.algo_lst = list()
 
 
     def set_env(self, num_svr, num_data, request_info):
@@ -230,6 +238,7 @@ class Controller:   # controller
         self.d_size_map = np.zeros(num_data, dtype=np.int_)
         self.requests = request_info
         self.usable_storage = np.zeros(self.num_svr)
+
 
     def create_env(self, data_lst):
         g = nx.Graph()
@@ -258,10 +267,28 @@ class Controller:   # controller
         nx.draw(self.graph)
         plt.show()
 
-
     def set_popularity(self, popularity_lst):
         for i in range(len(popularity_lst)):
             self.svr_lst[i].set_popularity(popularity_lst[i, :])
+
+
+    def add_algo(self, algo):
+        if type(algo).__name__ == 'CacheAlgo':
+            self.algo_lst.append(algo)
+            print('Success to add algo')
+        else:
+            print('wrong algo class')
+
+    def add_request(self, request):
+        hit_lst = list()
+        delay_lst = list()
+
+        for algo in self.algo_lst:
+            hit, delay = algo.check_cache(request.svr.id, request.id)
+            hit_lst.append(hit)
+            delay_lst.append(delay)
+        # print("server_id {}: {}".format(self.id, self.queue))
+        return hit_lst, delay_lst
 
     '''
     def set_svr_cache(self, svr_idx, cache_item):
@@ -323,7 +350,15 @@ class Controller:   # controller
                 self.rtt_map[j, i] = length
 
     def init_caching(self, y):
-        self.caching_map = y
+        for algo in self.algo_lst:
+            popularity_map = np.empty((0, self.num_data), float)
+            if algo.algo_name == "proposed":
+                self.caching_map = y
+            else:
+                self.caching_map = None
+                raise Exception("wrong algorithm name")
+            algo.init_caching(self.caching_map)
+
 
         # for svr in self.svr_lst:
         #     svr.storage_usage = 0
