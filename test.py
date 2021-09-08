@@ -45,7 +45,7 @@ def simulation(ctrl, s, request_lst):
     algo1 = CacheAlgo('proposed', ctrl.rtt_map, env)
     algo2 = CacheAlgo('greedy', ctrl.rtt_map, env)
     ctrl.add_algo(algo1)
-    #ctrl.add_algo(algo2)
+    ctrl.add_algo(algo2)
 
     total_hit = [0 for _ in range(len(ctrl.algo_lst))]
     total_delay = [0 for _ in range(len(ctrl.algo_lst))]
@@ -55,8 +55,10 @@ def simulation(ctrl, s, request_lst):
     t = 0
     print(request_lst[-1])
 
-    for algo in ctrl.algo_lst:
-        algo.init_caching(y)
+    ctrl.init_caching(y)
+    # for algo in ctrl.algo_lst:
+    #     algo.init_caching(y)
+    #     print("algo name:{} \n{}".format(algo.algo_name, algo.caching_map))
 
     while t < env['end time']:
         #if t % update_period == 0:

@@ -3,7 +3,7 @@ import random
 gamma = 0.99
 eta = 0.5
 max_steps = 200
-num_episodes = 500
+num_episodes = 1000
 num_files = 30
 num_servers = 5
 cache_size = 5

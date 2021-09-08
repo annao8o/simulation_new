@@ -24,7 +24,7 @@ class ArgsParser:
         self.parser.add_argument('-d', '--num_data', default=100, type=int)
         self.parser.add_argument('-t', '--num_type', default=5, type=int, help="The number of user types")
         self.parser.add_argument('-et', '--end_time', default=1000, type=int, help='End time (unit: seconds)')
-        self.parser.add_argument('-a', '--arrival', default=1, type=float, help='Arrival rate of MEC server (unit: per seconds)')
+        self.parser.add_argument('-a', '--arrival', default=10, type=float, help='Arrival rate of MEC server (unit: per seconds)')
         self.parser.add_argument('-c', '--cloud_rtt', default=0.1, type=float)
         self.parser.add_argument('-r', '--rtt', default=0.005, type=float)
         self.parser.add_argument('-b', '--bandwidth', default=200 * 1024 * 1024, type=int, help='bandwidth of MEC server (unit: bps)')

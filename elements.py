@@ -351,14 +351,17 @@ class Controller:   # controller
 
     def init_caching(self, y):
         for algo in self.algo_lst:
-            popularity_map = np.empty((0, self.num_data), float)
-            if algo.algo_name == "proposed":
-                self.caching_map = y
-            else:
-                self.caching_map = None
-                raise Exception("wrong algorithm name")
-            algo.init_caching(self.caching_map)
-
+            popularity_map = np.empty((self.num_svr, self.num_data), float)
+            # if algo.algo_name == "proposed":
+            #     algo.init_caching(y=y)
+            # else:
+            for svr in self.svr_lst:
+                popularity_map[svr.id] = svr.popularity
+                # algo.init_caching(popularity_map=popularity_map, d_size_map=self.d_size_map)
+                # # self.caching_map = None
+                # # raise Exception("wrong algorithm name")
+            algo.init_caching(y=y, popularity_map=popularity_map, d_size_map=self.d_size_map)
+            print(algo.algo_name, '\n', algo.caching_map)
 
         # for svr in self.svr_lst:
         #     svr.storage_usage = 0
